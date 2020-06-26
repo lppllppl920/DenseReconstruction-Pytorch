@@ -117,7 +117,8 @@ def main():
                                          intermediate_data_root=Path(args.precompute_root),
                                          visible_interval=args.visible_interval,
                                          num_pre_workers=args.num_workers,
-                                         num_iter=args.num_iter)
+                                         num_iter=args.num_iter,
+                                         phase="Train")
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=args.batch_size, shuffle=True,
                                                num_workers=args.num_workers)
@@ -145,7 +146,7 @@ def main():
     feature_warping_layer = models.FeatureWarpingLayer()
     flow_from_depth_layer = models.FlowfromDepthLayer()
     # Loss functions
-    sparse_log_prob_loss = losses.SparseLogProbLoss(epsilon=1.0e-4)
+    sparse_log_prob_loss = losses.SparseLogProbLoss()
     dense_log_prob_loss = losses.DenseLogProbLoss()
     sparse_masked_l1_loss = losses.NormalizedSparseMaskedL1Loss()
 

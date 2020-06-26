@@ -213,6 +213,34 @@ class DepthMeanStdScalingLayer(nn.Module):
             absolute_std_depth_estimations)
 
 
+class TestDepthMeanStdScalingLayer(nn.Module):
+    def __init__(self, epsilon=1.0e-8, gpu_id=0, lower_limit=0.1, upper_limit=3.0):
+        super(TestDepthMeanStdScalingLayer, self).__init__()
+
+        self.gpu_id = gpu_id
+        self.epsilon = torch.tensor(epsilon).float().cuda(self.gpu_id)
+        self.zero = torch.tensor(0.0).float().cuda(self.gpu_id)
+        self.one = torch.tensor(1.0).float().cuda(self.gpu_id)
+        self.lower_limit = lower_limit
+        self.upper_limit = upper_limit
+
+    def forward(self, x):
+        absolute_mean_depth_estimations, absolute_std_depth_estimations, input_sparse_depths, binary_sparse_masks = x
+        # Use sparse depth values which are greater than a certain ratio of the mean value of the sparse depths to avoid
+        # instability of scale recovery
+        mean_sparse_depths = torch.sum(input_sparse_depths * binary_sparse_masks, dim=(1, 2, 3),
+                                       keepdim=True) / torch.sum(binary_sparse_masks, dim=(1, 2, 3),
+                                                                 keepdim=True)
+        masks = ((input_sparse_depths > self.lower_limit * mean_sparse_depths) & (
+                input_sparse_depths < self.upper_limit * mean_sparse_depths)).float()
+
+        sparse_scale_maps = input_sparse_depths * masks / (self.epsilon + absolute_mean_depth_estimations)
+        scales = torch.sum(sparse_scale_maps, dim=(1, 2, 3)) / torch.sum(masks, dim=(1, 2, 3))
+        return torch.mul(scales.view(-1, 1, 1, 1), absolute_mean_depth_estimations), torch.mul(
+            scales.view(-1, 1, 1, 1),
+            absolute_std_depth_estimations), scales
+
+
 class DepthWarpingLayer(nn.Module):
     def __init__(self, epsilon=1.0e-8, gpu_id=0):
         super(DepthWarpingLayer, self).__init__()

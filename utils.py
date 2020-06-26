@@ -23,6 +23,9 @@ import torchvision.utils as vutils
 import tqdm
 import matplotlib.pyplot as plt
 
+import models
+import dataset
+
 
 def draw_flow(flows, max_v=None):
     batch_size, channel, height, width = flows.shape
@@ -1161,54 +1164,56 @@ def feature_matching_single(color_1, color_2, feature_map_1, feature_map_2, kps_
         return display_matches_ai, display_matches_craft
 
 
-def gather_feature_matching_data(model, model_path, gpu_id, data_loader):
-    # feature_descriptor_model = models.FCDenseNet(
-    #     in_channels=3, down_blocks=(3, 3, 3, 3, 3),
-    #     up_blocks=(3, 3, 3, 3, 3), bottleneck_layers=4,
-    #     growth_rate=filter_growth_rate, out_chans_first_conv=16, feature_length=feature_length)
+def gather_feature_matching_data(feature_descriptor_model_path, sub_folder, data_root, image_downsampling,
+                                 network_downsampling, load_intermediate_data, precompute_root,
+                                 batch_size, id_range, filter_growth_rate, feature_length, gpu_id):
+    feature_descriptor_model = models.FCDenseNetFeature(
+        in_channels=3, down_blocks=(3, 3, 3, 3, 3),
+        up_blocks=(3, 3, 3, 3, 3), bottleneck_layers=4,
+        growth_rate=filter_growth_rate, out_chans_first_conv=16, feature_length=feature_length)
 
     # Multi-GPU running
-    model = torch.nn.DataParallel(model, device_ids=[gpu_id])
-    model.eval()
+    feature_descriptor_model = torch.nn.DataParallel(feature_descriptor_model, device_ids=[gpu_id])
+    feature_descriptor_model.eval()
 
-    if model_path.exists():
-        print("Loading {:s} ...".format(str(model_path)))
-        state = torch.load(str(model_path), map_location='cuda:{}'.format(gpu_id))
-        model.load_state_dict(state["model"])
+    if feature_descriptor_model_path.exists():
+        print("Loading {:s} ...".format(str(feature_descriptor_model_path)))
+        state = torch.load(str(feature_descriptor_model_path), map_location='cuda:{}'.format(gpu_id))
+        feature_descriptor_model.load_state_dict(state["model"])
     else:
         print("No pre-trained model detected")
         raise OSError
     del state
 
-    # video_frame_filenames = get_all_color_image_names_in_sequence(sub_folder)
-    # print("Gathering feature matching data for {}".format(str(sub_folder)))
-    # folder_list = get_all_subfolder_names(data_root, id_range)
-    # video_dataset = dataset.SfMDataset(image_file_names=video_frame_filenames,
-    #                                    folder_list=folder_list,
-    #                                    image_downsampling=image_downsampling,
-    #                                    network_downsampling=network_downsampling,
-    #                                    load_intermediate_data=load_intermediate_data,
-    #                                    intermediate_data_root=precompute_root,
-    #                                    phase="image_loading")
-    # video_loader = torch.utils.data.DataLoader(dataset=video_dataset, batch_size=batch_size,
-    #                                            shuffle=False,
-    #                                            num_workers=batch_size)
+    video_frame_filenames = get_all_color_image_names_in_sequence(sub_folder)
+    print("Gathering feature matching data for {}".format(str(sub_folder)))
+    folder_list = get_all_subfolder_names(data_root, id_range)
+    video_dataset = dataset.DescriptorDataset(image_file_names=video_frame_filenames,
+                                              folder_list=folder_list,
+                                              image_downsampling=image_downsampling,
+                                              network_downsampling=network_downsampling,
+                                              load_intermediate_data=load_intermediate_data,
+                                              intermediate_data_root=precompute_root,
+                                              phase="Loading")
+    video_loader = torch.utils.data.DataLoader(dataset=video_dataset, batch_size=batch_size,
+                                               shuffle=False,
+                                               num_workers=batch_size)
 
     colors_list = []
     feature_maps_list = []
     with torch.no_grad():
         # Update progress bar
-        tq = tqdm.tqdm(total=len(data_loader))
+        tq = tqdm.tqdm(total=len(video_loader) * batch_size)
         for batch, (colors_1, boundaries, image_names,
-                    folders, starts_h, starts_w) in enumerate(data_loader):
-            tq.update(1)
+                    folders, starts_h, starts_w) in enumerate(video_loader):
+            tq.update(batch_size)
             colors_1 = colors_1.cuda(gpu_id)
             if batch == 0:
                 boundary = boundaries[0].data.numpy()
                 start_h = starts_h[0].item()
                 start_w = starts_w[0].item()
 
-            feature_maps_1 = model(colors_1)
+            feature_maps_1 = feature_descriptor_model(colors_1)
             for idx in range(colors_1.shape[0]):
                 colors_list.append(colors_1[idx].data.cpu().numpy())
                 feature_maps_list.append(feature_maps_1[idx].data.cpu())

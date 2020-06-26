@@ -34,7 +34,7 @@ import losses
 if __name__ == '__main__':
     multiprocessing.set_start_method('spawn', force=True)
     parser = argparse.ArgumentParser(
-        description='dense descriptor learning',
+        description='Dense descriptor training',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--adjacent_range', nargs='+', type=int, required=True,
                         help='interval range for a pair of video frames')
