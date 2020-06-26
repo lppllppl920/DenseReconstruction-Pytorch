@@ -1,0 +1,7 @@
+    parser.add_argument("--sequence_root", type=str, required=True, help='root of video sequence')
+    parser.add_argument("--overwrite_database", action="store_true")
+
+--sequence_root
+"/home/xingtong/Data/example_training_data_root/1/_start_002603_end_002984_stride_1000_segment_00"
+--overwrite_database
+

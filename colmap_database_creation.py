@@ -8,10 +8,12 @@ terms of the GNU GENERAL PUBLIC LICENSE Version 3 license for non-commercial usa
 You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3 license with
 this file. If not, please write to: xliu89@jh.edu or unberath@jhu.edu
 '''
+import sys
 
+if '/opt/ros/kinetic/lib/python2.7/dist-packages' in sys.path:
+    sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import argparse
 from pathlib import Path
-import sys
 import sqlite3
 import numpy as np
 import cv2
@@ -208,7 +210,7 @@ class COLMAPDatabase(sqlite3.Connection):
                                           array_to_blob(F), array_to_blob(E), array_to_blob(H)))
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='COLMAP database building',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--sequence_root", type=str, required=True, help='root of video sequence')
@@ -356,3 +358,7 @@ if __name__ == "__main__":
 
     # Write to the database file
     db.commit()
+
+
+if __name__ == "__main__":
+    main()

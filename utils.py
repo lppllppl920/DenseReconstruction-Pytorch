@@ -1166,7 +1166,7 @@ def feature_matching_single(color_1, color_2, feature_map_1, feature_map_2, kps_
 
 def gather_feature_matching_data(feature_descriptor_model_path, sub_folder, data_root, image_downsampling,
                                  network_downsampling, load_intermediate_data, precompute_root,
-                                 batch_size, id_range, filter_growth_rate, feature_length, gpu_id):
+                                 batch_size, id_list, filter_growth_rate, feature_length, gpu_id):
     feature_descriptor_model = models.FCDenseNetFeature(
         in_channels=3, down_blocks=(3, 3, 3, 3, 3),
         up_blocks=(3, 3, 3, 3, 3), bottleneck_layers=4,
@@ -1187,7 +1187,7 @@ def gather_feature_matching_data(feature_descriptor_model_path, sub_folder, data
 
     video_frame_filenames = get_all_color_image_names_in_sequence(sub_folder)
     print("Gathering feature matching data for {}".format(str(sub_folder)))
-    folder_list = get_all_subfolder_names(data_root, id_range)
+    folder_list = get_all_subfolder_names(data_root, id_list)
     video_dataset = dataset.DescriptorDataset(image_file_names=video_frame_filenames,
                                               folder_list=folder_list,
                                               image_downsampling=image_downsampling,
