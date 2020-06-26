@@ -119,10 +119,9 @@ def find_common_valid_size(folder_list, image_downsampling, network_downsampling
 class DepthDataset(Dataset):
     def __init__(self, image_file_names, folder_list, adjacent_range,
                  image_downsampling, network_downsampling, inlier_percentage, visible_interval,
-                 load_intermediate_data, intermediate_data_root, num_pre_workers, num_iter=None):
+                 load_intermediate_data, intermediate_data_root, num_pre_workers, num_iter=None, phase="Train"):
         self.image_file_names = image_file_names
         self.folder_list = folder_list
-        assert (len(adjacent_range) == 2)
         self.adjacent_range = adjacent_range
         self.inlier_percentage = inlier_percentage
         self.image_downsampling = image_downsampling
@@ -131,6 +130,7 @@ class DepthDataset(Dataset):
         self.num_pre_workers = min(len(folder_list), num_pre_workers)
         self.num_iter = num_iter
         self.num_sample = len(self.image_file_names)
+        self.phase = phase
 
         self.clean_point_list_per_seq = {}
         self.intrinsic_matrix_per_seq = {}
@@ -328,29 +328,145 @@ class DepthDataset(Dataset):
             return self.num_iter
 
     def __getitem__(self, idx):
-        while True:
-            img_file_name = self.image_file_names[idx % len(self.image_file_names)]
-            # Retrieve the folder path
-            folder = img_file_name.parents[1]
-            images_folder = folder / "images"
-            folder_str = str(folder)
-            # Randomly pick one adjacent frame
-            # We assume the filename has 8 logits followed by ".jpg"
-            if folder_str not in self.crop_positions_per_seq:
-                print("{} not in pre-compute data".format(folder_str))
-                idx = np.random.randint(0, len(self.image_file_names))
-                continue
+        if self.phase == "Train" or self.phase == "Validation":
+            while True:
+                img_file_name = self.image_file_names[idx % len(self.image_file_names)]
+                # Retrieve the folder path
+                folder = img_file_name.parents[1]
+                images_folder = folder / "images"
+                folder_str = str(folder)
+                # Randomly pick one adjacent frame
+                # We assume the filename has 8 logits followed by ".jpg"
+                if folder_str not in self.crop_positions_per_seq:
+                    print("{} not in pre-compute data".format(folder_str))
+                    idx = np.random.randint(0, len(self.image_file_names))
+                    continue
 
-            # Randomly pick one adjacent frame
-            # We assume the filename of color image has 8 logits with ".jpg" as suffix
+                # Randomly pick one adjacent frame
+                # We assume the filename of color image has 8 logits with ".jpg" as suffix
+                start_h, end_h, start_w, end_w = self.crop_positions_per_seq[folder_str]
+                pos, increment = utils.generating_pos_and_increment(idx=idx,
+                                                                    visible_view_indexes=
+                                                                    self.visible_view_indexes_per_seq[
+                                                                        folder_str],
+                                                                    adjacent_range=self.adjacent_range)
+                img_file_name = self.visible_view_indexes_per_seq[folder_str][
+                    idx % len(self.visible_view_indexes_per_seq[folder_str])]
+
+                # Get pair visible view indexes and pair extrinsic and projection matrices
+                pair_indexes = [self.visible_view_indexes_per_seq[folder_str][pos],
+                                self.visible_view_indexes_per_seq[folder_str][pos + increment]]
+                pair_extrinsic_matrices = [self.extrinsics_per_seq[folder_str][pos],
+                                           self.extrinsics_per_seq[folder_str][pos + increment]]
+                pair_projection_matrices = [self.projection_per_seq[folder_str][pos],
+                                            self.projection_per_seq[folder_str][pos + increment]]
+
+                pair_mask_imgs, pair_sparse_depth_imgs, pair_flow_mask_imgs, pair_flow_imgs = \
+                    utils.get_torch_training_data(pair_extrinsics=pair_extrinsic_matrices,
+                                                  pair_projections=
+                                                  pair_projection_matrices, pair_indexes=pair_indexes,
+                                                  point_cloud=self.point_cloud_per_seq[folder_str],
+                                                  mask_boundary=self.mask_boundary_per_seq[folder_str],
+                                                  view_indexes_per_point=self.view_indexes_per_point_per_seq[
+                                                      folder_str],
+                                                  visible_view_indexes=self.visible_view_indexes_per_seq[folder_str],
+                                                  clean_point_list=self.clean_point_list_per_seq[
+                                                      folder_str])
+
+                if np.sum(pair_mask_imgs[0]) != 0 and np.sum(pair_mask_imgs[1]) != 0:
+                    break
+                else:
+                    idx = np.random.randint(0, len(self.image_file_names))
+
+            # Read pair images with downsampling and cropping
+            pair_imgs = utils.get_pair_color_imgs(prefix_seq=images_folder, pair_indexes=pair_indexes, start_h=start_h,
+                                                  start_w=start_w,
+                                                  end_h=end_h, end_w=end_w, downsampling_factor=self.image_downsampling)
+
+            # Calculate relative motion between two frames
+            relative_motion = np.matmul(pair_extrinsic_matrices[0], np.linalg.inv(pair_extrinsic_matrices[1]))
+            rotation_1_wrt_2 = np.reshape(relative_motion[:3, :3], (3, 3)).astype(np.float32)
+            translation_1_wrt_2 = (
+                    np.reshape(relative_motion[:3, 3], (3, 1)) / self.estimated_scale_per_seq[folder_str]).astype(
+                np.float32)
+
+            # Scale the sparse depth map
+            pair_sparse_depth_imgs[0] /= self.estimated_scale_per_seq[folder_str]
+            pair_sparse_depth_imgs[1] /= self.estimated_scale_per_seq[folder_str]
+
+            # Format training data
+            color_img_1 = pair_imgs[0]
+            color_img_2 = pair_imgs[1]
+
+            rotation_2_wrt_1 = np.transpose(rotation_1_wrt_2).astype(np.float32)
+            translation_2_wrt_1 = np.matmul(-np.transpose(rotation_1_wrt_2), translation_1_wrt_2).astype(np.float32)
+
+            rotation_1_wrt_2 = rotation_1_wrt_2.reshape((3, 3))
+            rotation_2_wrt_1 = rotation_2_wrt_1.reshape((3, 3))
+            translation_1_wrt_2 = translation_1_wrt_2.reshape((3, 1))
+            translation_2_wrt_1 = translation_2_wrt_1.reshape((3, 1))
+
+            sparse_depth_img_1 = pair_sparse_depth_imgs[0].astype(np.float32)
+            sparse_depth_img_2 = pair_sparse_depth_imgs[1].astype(np.float32)
+            mask_img_1 = pair_mask_imgs[0].astype(np.float32)
+            mask_img_2 = pair_mask_imgs[1].astype(np.float32)
+            sparse_depth_img_1 = sparse_depth_img_1.reshape((sparse_depth_img_1.shape[0],
+                                                             sparse_depth_img_1.shape[1], 1))
+            sparse_depth_img_2 = sparse_depth_img_2.reshape((sparse_depth_img_2.shape[0],
+                                                             sparse_depth_img_2.shape[1], 1))
+            mask_img_1 = mask_img_1.reshape(
+                (mask_img_1.shape[0], mask_img_1.shape[1], 1))
+            mask_img_2 = mask_img_2.reshape(
+                (mask_img_2.shape[0], mask_img_2.shape[1], 1))
+            flow_mask_img_1 = pair_flow_mask_imgs[0].astype(np.float32)
+            flow_mask_img_2 = pair_flow_mask_imgs[1].astype(np.float32)
+            flow_img_1 = pair_flow_imgs[0].astype(np.float32)
+            flow_img_2 = pair_flow_imgs[1].astype(np.float32)
+
+            intrinsic_matrix = self.intrinsic_matrix_per_seq[folder_str][:3, :3]
+            intrinsic_matrix = intrinsic_matrix.astype(np.float32)
+            intrinsic_matrix = intrinsic_matrix.reshape((3, 3))
+
+            mask_boundary = self.mask_boundary_per_seq[folder_str].astype(np.float32) / 255.0
+            mask_boundary[mask_boundary > 0.9] = 1.0
+            mask_boundary[mask_boundary <= 0.9] = 0.0
+            mask_boundary = mask_boundary.reshape((mask_boundary.shape[0], mask_boundary.shape[1], 1))
+
+            kernel = np.ones((5, 5), np.uint8)
+            shrink_boundary = cv2.erode(mask_boundary.astype(np.uint8), kernel, iterations=3)
+            shrink_boundary = shrink_boundary.astype(np.float32).reshape(
+                (mask_boundary.shape[0], mask_boundary.shape[1], 1))
+
+            # Normalize
+            color_img_1 = self.normalize(image=color_img_1)['image']
+            color_img_2 = self.normalize(image=color_img_2)['image']
+
+            return [img_to_tensor(color_img_1), img_to_tensor(color_img_2),
+                    img_to_tensor(sparse_depth_img_1), img_to_tensor(sparse_depth_img_2),
+                    img_to_tensor(mask_img_1), img_to_tensor(mask_img_2),
+                    img_to_tensor(flow_img_1), img_to_tensor(flow_img_2),
+                    img_to_tensor(flow_mask_img_1), img_to_tensor(flow_mask_img_2),
+                    img_to_tensor(mask_boundary), img_to_tensor(shrink_boundary),
+                    torch.from_numpy(rotation_1_wrt_2),
+                    torch.from_numpy(rotation_2_wrt_1), torch.from_numpy(translation_1_wrt_2),
+                    torch.from_numpy(translation_2_wrt_1), torch.from_numpy(intrinsic_matrix),
+                    folder_str, img_file_name]
+
+        elif self.phase == "Loading":
+            img_file_name = self.image_file_names[idx]
+            # Retrieve the folder path
+            folder = img_file_name.parent
+            img_index = int(img_file_name.name[-12:-4])
+
+            folder_str = str(folder)
+
             start_h, end_h, start_w, end_w = self.crop_positions_per_seq[folder_str]
-            pos, increment = utils.generating_pos_and_increment(idx=idx,
-                                                                visible_view_indexes=
-                                                                self.visible_view_indexes_per_seq[
-                                                                    folder_str],
-                                                                adjacent_range=self.adjacent_range)
-            img_file_name = self.visible_view_indexes_per_seq[folder_str][
-                idx % len(self.visible_view_indexes_per_seq[folder_str])]
+            pos = self.visible_view_indexes_per_seq[folder_str].index(img_index)
+
+            if pos < len(self.visible_view_indexes_per_seq[folder_str]) - 1:
+                increment = 1
+            else:
+                increment = -1
 
             # Get pair visible view indexes and pair extrinsic and projection matrices
             pair_indexes = [self.visible_view_indexes_per_seq[folder_str][pos],
@@ -359,8 +475,12 @@ class DepthDataset(Dataset):
                                        self.extrinsics_per_seq[folder_str][pos + increment]]
             pair_projection_matrices = [self.projection_per_seq[folder_str][pos],
                                         self.projection_per_seq[folder_str][pos + increment]]
+            # Read pair images with downsampling and cropping
+            pair_imgs = utils.get_pair_color_imgs(prefix_seq=folder_str, pair_indexes=pair_indexes, start_h=start_h,
+                                                  start_w=start_w,
+                                                  end_h=end_h, end_w=end_w, downsampling_factor=self.image_downsampling)
 
-            pair_mask_imgs, pair_sparse_depth_imgs, pair_flow_mask_imgs, pair_flow_imgs = \
+            pair_mask_imgs, pair_sparse_depth_imgs, _, _ = \
                 utils.get_torch_training_data(pair_extrinsics=pair_extrinsic_matrices,
                                               pair_projections=
                                               pair_projection_matrices, pair_indexes=pair_indexes,
@@ -371,84 +491,47 @@ class DepthDataset(Dataset):
                                               clean_point_list=self.clean_point_list_per_seq[
                                                   folder_str])
 
-            if np.sum(pair_mask_imgs[0]) != 0 and np.sum(pair_mask_imgs[1]) != 0:
-                break
-            else:
-                idx = np.random.randint(0, len(self.image_file_names))
+            # Scale the sparse depth map
+            pair_sparse_depth_imgs[0] /= self.estimated_scale_per_seq[folder_str]
+            pair_sparse_depth_imgs[1] /= self.estimated_scale_per_seq[folder_str]
 
-        # Read pair images with downsampling and cropping
-        pair_imgs = utils.get_pair_color_imgs(prefix_seq=images_folder, pair_indexes=pair_indexes, start_h=start_h,
-                                              start_w=start_w,
-                                              end_h=end_h, end_w=end_w, downsampling_factor=self.image_downsampling)
+            # Format training data
+            training_color_img_1 = pair_imgs[0]
+            height, width, _ = training_color_img_1.shape
 
-        # Calculate relative motion between two frames
-        relative_motion = np.matmul(pair_extrinsic_matrices[0], np.linalg.inv(pair_extrinsic_matrices[1]))
-        rotation_1_wrt_2 = np.reshape(relative_motion[:3, :3], (3, 3)).astype(np.float32)
-        translation_1_wrt_2 = (
-                np.reshape(relative_motion[:3, 3], (3, 1)) / self.estimated_scale_per_seq[folder_str]).astype(
-            np.float32)
+            # Full indexes
+            training_sparse_depth_img_1 = utils.type_float_and_reshape(pair_sparse_depth_imgs[0],
+                                                                       (height, width, 1))
+            training_mask_img_1 = utils.type_float_and_reshape(pair_mask_imgs[0],
+                                                               (height, width, 1))
+            training_intrinsic_matrix = utils.type_float_and_reshape(
+                self.intrinsic_matrix_per_seq[folder_str][:3, :3],
+                (3, 3))
+            training_mask_boundary = utils.type_float_and_reshape(
+                self.mask_boundary_per_seq[folder_str].astype(np.float32) / 255.0,
+                (height, width, 1))
+            training_mask_boundary[training_mask_boundary > 0.9] = 1.0
+            training_mask_boundary[training_mask_boundary <= 0.9] = 0.0
 
-        # Scale the sparse depth map
-        pair_sparse_depth_imgs[0] /= self.estimated_scale_per_seq[folder_str]
-        pair_sparse_depth_imgs[1] /= self.estimated_scale_per_seq[folder_str]
+            # Convert the extrinsic matrix to T^(world)_(camera)
+            temp_extrinsic = pair_extrinsic_matrices[0]
+            training_extrinsic_1 = np.zeros_like(pair_extrinsic_matrices[0])
+            training_extrinsic_1[:3, :3] = np.transpose(temp_extrinsic[:3, :3])
+            training_extrinsic_1[:3, 3] = np.matmul(-np.transpose(temp_extrinsic[:3, :3]), temp_extrinsic[:3, 3]) \
+                                          / self.estimated_scale_per_seq[folder_str]
+            training_extrinsic_1[3, 3] = 1.0
+            training_extrinsic_1 = utils.type_float_and_reshape(training_extrinsic_1, (4, 4))
 
-        # Format training data
-        color_img_1 = pair_imgs[0]
-        color_img_2 = pair_imgs[1]
+            # Normalize
+            training_color_img_1 = self.normalize(image=training_color_img_1)['image']
 
-        rotation_2_wrt_1 = np.transpose(rotation_1_wrt_2).astype(np.float32)
-        translation_2_wrt_1 = np.matmul(-np.transpose(rotation_1_wrt_2), translation_1_wrt_2).astype(np.float32)
-
-        rotation_1_wrt_2 = rotation_1_wrt_2.reshape((3, 3))
-        rotation_2_wrt_1 = rotation_2_wrt_1.reshape((3, 3))
-        translation_1_wrt_2 = translation_1_wrt_2.reshape((3, 1))
-        translation_2_wrt_1 = translation_2_wrt_1.reshape((3, 1))
-
-        sparse_depth_img_1 = pair_sparse_depth_imgs[0].astype(np.float32)
-        sparse_depth_img_2 = pair_sparse_depth_imgs[1].astype(np.float32)
-        mask_img_1 = pair_mask_imgs[0].astype(np.float32)
-        mask_img_2 = pair_mask_imgs[1].astype(np.float32)
-        sparse_depth_img_1 = sparse_depth_img_1.reshape((sparse_depth_img_1.shape[0],
-                                                         sparse_depth_img_1.shape[1], 1))
-        sparse_depth_img_2 = sparse_depth_img_2.reshape((sparse_depth_img_2.shape[0],
-                                                         sparse_depth_img_2.shape[1], 1))
-        mask_img_1 = mask_img_1.reshape(
-            (mask_img_1.shape[0], mask_img_1.shape[1], 1))
-        mask_img_2 = mask_img_2.reshape(
-            (mask_img_2.shape[0], mask_img_2.shape[1], 1))
-        flow_mask_img_1 = pair_flow_mask_imgs[0].astype(np.float32)
-        flow_mask_img_2 = pair_flow_mask_imgs[1].astype(np.float32)
-        flow_img_1 = pair_flow_imgs[0].astype(np.float32)
-        flow_img_2 = pair_flow_imgs[1].astype(np.float32)
-
-        intrinsic_matrix = self.intrinsic_matrix_per_seq[folder_str][:3, :3]
-        intrinsic_matrix = intrinsic_matrix.astype(np.float32)
-        intrinsic_matrix = intrinsic_matrix.reshape((3, 3))
-
-        mask_boundary = self.mask_boundary_per_seq[folder_str].astype(np.float32) / 255.0
-        mask_boundary[mask_boundary > 0.9] = 1.0
-        mask_boundary[mask_boundary <= 0.9] = 0.0
-        mask_boundary = mask_boundary.reshape((mask_boundary.shape[0], mask_boundary.shape[1], 1))
-
-        kernel = np.ones((5, 5), np.uint8)
-        shrink_boundary = cv2.erode(mask_boundary.astype(np.uint8), kernel, iterations=3)
-        shrink_boundary = shrink_boundary.astype(np.float32).reshape(
-            (mask_boundary.shape[0], mask_boundary.shape[1], 1))
-
-        # Normalize
-        color_img_1 = self.normalize(image=color_img_1)['image']
-        color_img_2 = self.normalize(image=color_img_2)['image']
-
-        return [img_to_tensor(color_img_1), img_to_tensor(color_img_2),
-                img_to_tensor(sparse_depth_img_1), img_to_tensor(sparse_depth_img_2),
-                img_to_tensor(mask_img_1), img_to_tensor(mask_img_2),
-                img_to_tensor(flow_img_1), img_to_tensor(flow_img_2),
-                img_to_tensor(flow_mask_img_1), img_to_tensor(flow_mask_img_2),
-                img_to_tensor(mask_boundary), img_to_tensor(shrink_boundary),
-                torch.from_numpy(rotation_1_wrt_2),
-                torch.from_numpy(rotation_2_wrt_1), torch.from_numpy(translation_1_wrt_2),
-                torch.from_numpy(translation_2_wrt_1), torch.from_numpy(intrinsic_matrix),
-                folder_str, img_file_name]
+            return [img_to_tensor(training_color_img_1),
+                    img_to_tensor(training_sparse_depth_img_1),
+                    img_to_tensor(training_mask_img_1),
+                    img_to_tensor(training_mask_boundary),
+                    torch.from_numpy(training_extrinsic_1),
+                    torch.from_numpy(training_intrinsic_matrix),
+                    img_index, folder_str]
 
 
 class DescriptorDataset(Dataset):
@@ -456,7 +539,7 @@ class DescriptorDataset(Dataset):
                  image_downsampling, network_downsampling, load_intermediate_data,
                  intermediate_data_root, visible_interval=30, num_pre_workers=12, inlier_percentage=0.998,
                  adjacent_range=(1, 1), num_iter=None,
-                 sampling_size=10, heatmap_sigma=5.0):
+                 sampling_size=10, heatmap_sigma=5.0, phase='Train'):
 
         self.image_file_names = sorted(image_file_names)
         self.folder_list = folder_list
@@ -471,6 +554,7 @@ class DescriptorDataset(Dataset):
         self.heatmap_sigma = heatmap_sigma
         self.num_pre_workers = min(len(folder_list), num_pre_workers)
         self.normalize = albu.Normalize(std=(0.5, 0.5, 0.5), mean=(0.5, 0.5, 0.5), max_pixel_value=255.0)
+        self.phase = phase
 
         self.clean_point_list_per_seq = {}
         self.intrinsic_matrix_per_seq = {}
@@ -667,116 +751,140 @@ class DescriptorDataset(Dataset):
             return len(self.image_file_names)
 
     def __getitem__(self, idx):
-        while True:
-            img_file_name = self.image_file_names[idx % len(self.image_file_names)]
+        if self.phase == "Train" or self.phase == "Validation":
+            while True:
+                img_file_name = self.image_file_names[idx % len(self.image_file_names)]
+                # Retrieve the folder path
+                folder = img_file_name.parents[1]
+                images_folder = folder / "images"
+                folder_str = str(folder)
+                # Randomly pick one adjacent frame
+                # We assume the filename has 8 logits followed by ".jpg"
+                if folder_str not in self.crop_positions_per_seq:
+                    print("{} not in stored data".format(folder_str))
+                    idx = np.random.randint(0, len(self.image_file_names))
+                    continue
+
+                start_h, end_h, start_w, end_w = self.crop_positions_per_seq[folder_str]
+                pos, increment = utils.generating_pos_and_increment(idx=idx,
+                                                                    visible_view_indexes=
+                                                                    self.visible_view_indexes_per_seq[
+                                                                        folder_str],
+                                                                    adjacent_range=self.adjacent_range)
+                # Get pair visible view indexes and pair extrinsic and projection matrices
+                pair_indexes = [self.visible_view_indexes_per_seq[folder_str][pos],
+                                self.visible_view_indexes_per_seq[folder_str][pos + increment]]
+                pair_projection_matrices = [self.projection_per_seq[folder_str][pos],
+                                            self.projection_per_seq[folder_str][pos + increment]]
+                # Read pair images with downsampling and cropping
+                pair_imgs = utils.get_pair_color_imgs(prefix_seq=images_folder, pair_indexes=pair_indexes,
+                                                      start_h=start_h,
+                                                      start_w=start_w,
+                                                      end_h=end_h, end_w=end_w,
+                                                      downsampling_factor=self.image_downsampling)
+                height, width = pair_imgs[0].shape[:2]
+                feature_matches = \
+                    utils.get_torch_training_data_feature_matching(height=height, width=width,
+                                                                   pair_projections=
+                                                                   pair_projection_matrices,
+                                                                   pair_indexes=pair_indexes,
+                                                                   point_cloud=self.point_cloud_per_seq[
+                                                                       folder_str],
+                                                                   mask_boundary=self.mask_boundary_per_seq[folder_str],
+                                                                   view_indexes_per_point=
+                                                                   self.view_indexes_per_point_per_seq[folder_str],
+                                                                   visible_view_indexes=
+                                                                   self.visible_view_indexes_per_seq[
+                                                                       folder_str],
+                                                                   clean_point_list=
+                                                                   self.clean_point_list_per_seq[
+                                                                       folder_str])
+
+                if feature_matches.shape[0] > 0:
+                    sampled_feature_matches_indexes = \
+                        np.asarray(
+                            np.random.choice(np.arange(feature_matches.shape[0]), size=self.sampling_size),
+                            dtype=np.int32).reshape((-1,))
+                    sampled_feature_matches = np.asarray(feature_matches[sampled_feature_matches_indexes, :],
+                                                         dtype=np.float32).reshape(
+                        (self.sampling_size, 4))
+                    break
+                else:
+                    idx = np.random.randint(0, len(self.image_file_names))
+                    continue
+
+            height, width, _ = pair_imgs[0].shape
+            training_heatmaps_1, training_heatmaps_2 = utils.generate_heatmap_from_locations(
+                sampled_feature_matches, height, width, self.heatmap_sigma)
+
+            # Format training data
+            training_color_img_1 = pair_imgs[0]
+            training_color_img_2 = pair_imgs[1]
+
+            training_mask_boundary = utils.type_float_and_reshape(
+                self.mask_boundary_per_seq[folder_str].astype(np.float32) / 255.0,
+                (height, width, 1))
+            training_mask_boundary[training_mask_boundary > 0.9] = 1.0
+            training_mask_boundary[training_mask_boundary <= 0.9] = 0.0
+
+            source_feature_2D_locations = sampled_feature_matches[:, :2]
+            target_feature_2D_locations = sampled_feature_matches[:, 2:]
+
+            source_feature_1D_locations = np.zeros(
+                (sampled_feature_matches.shape[0], 1), dtype=np.int32)
+            target_feature_1D_locations = np.zeros(
+                (sampled_feature_matches.shape[0], 1), dtype=np.int32)
+
+            clipped_source_feature_2D_locations = source_feature_2D_locations
+            clipped_source_feature_2D_locations[:, 0] = np.clip(clipped_source_feature_2D_locations[:, 0], a_min=0,
+                                                                a_max=width - 1)
+            clipped_source_feature_2D_locations[:, 1] = np.clip(clipped_source_feature_2D_locations[:, 1], a_min=0,
+                                                                a_max=height - 1)
+
+            clipped_target_feature_2D_locations = target_feature_2D_locations
+            clipped_target_feature_2D_locations[:, 0] = np.clip(clipped_target_feature_2D_locations[:, 0], a_min=0,
+                                                                a_max=width - 1)
+            clipped_target_feature_2D_locations[:, 1] = np.clip(clipped_target_feature_2D_locations[:, 1], a_min=0,
+                                                                a_max=height - 1)
+
+            source_feature_1D_locations[:, 0] = np.round(clipped_source_feature_2D_locations[:, 0]) + \
+                                                np.round(clipped_source_feature_2D_locations[:, 1]) * width
+            target_feature_1D_locations[:, 0] = np.round(clipped_target_feature_2D_locations[:, 0]) + \
+                                                np.round(clipped_target_feature_2D_locations[:, 1]) * width
+
+            # Normalize
+            training_color_img_1 = self.normalize(image=training_color_img_1)['image']
+            training_color_img_2 = self.normalize(image=training_color_img_2)['image']
+
+            return [img_to_tensor(training_color_img_1), img_to_tensor(training_color_img_2),
+                    torch.from_numpy(source_feature_1D_locations),
+                    torch.from_numpy(target_feature_1D_locations),
+                    torch.from_numpy(source_feature_2D_locations),
+                    torch.from_numpy(target_feature_2D_locations),
+                    torch.from_numpy(training_heatmaps_1),
+                    torch.from_numpy(training_heatmaps_2),
+                    img_to_tensor(training_mask_boundary),
+                    folder_str, str(img_file_name)]
+        elif self.phase == "Loading":
+            img_file_name = self.image_file_names[idx]
             # Retrieve the folder path
-            folder = img_file_name.parents[1]
-            images_folder = folder / "images"
-            folder_str = str(folder)
-            # Randomly pick one adjacent frame
-            # We assume the filename has 8 logits followed by ".jpg"
-            if folder_str not in self.crop_positions_per_seq:
-                print("{} not in stored data".format(folder_str))
-                idx = np.random.randint(0, len(self.image_file_names))
-                continue
+            folder_str = str(img_file_name.parents[1])
 
             start_h, end_h, start_w, end_w = self.crop_positions_per_seq[folder_str]
-            pos, increment = utils.generating_pos_and_increment(idx=idx,
-                                                                visible_view_indexes=
-                                                                self.visible_view_indexes_per_seq[
-                                                                    folder_str],
-                                                                adjacent_range=self.adjacent_range)
-            # Get pair visible view indexes and pair extrinsic and projection matrices
-            pair_indexes = [self.visible_view_indexes_per_seq[folder_str][pos],
-                            self.visible_view_indexes_per_seq[folder_str][pos + increment]]
-            pair_projection_matrices = [self.projection_per_seq[folder_str][pos],
-                                        self.projection_per_seq[folder_str][pos + increment]]
-            # Read pair images with downsampling and cropping
-            pair_imgs = utils.get_pair_color_imgs(prefix_seq=images_folder, pair_indexes=pair_indexes,
-                                                  start_h=start_h,
-                                                  start_w=start_w,
-                                                  end_h=end_h, end_w=end_w,
-                                                  downsampling_factor=self.image_downsampling)
-            height, width = pair_imgs[0].shape[:2]
-            feature_matches = \
-                utils.get_torch_training_data_feature_matching(height=height, width=width,
-                                                               pair_projections=
-                                                               pair_projection_matrices,
-                                                               pair_indexes=pair_indexes,
-                                                               point_cloud=self.point_cloud_per_seq[
-                                                                   folder_str],
-                                                               mask_boundary=self.mask_boundary_per_seq[folder_str],
-                                                               view_indexes_per_point=
-                                                               self.view_indexes_per_point_per_seq[folder_str],
-                                                               visible_view_indexes=
-                                                               self.visible_view_indexes_per_seq[
-                                                                   folder_str],
-                                                               clean_point_list=
-                                                               self.clean_point_list_per_seq[
-                                                                   folder_str])
+            color_img = utils.read_color_img(img_file_name, start_h, end_h, start_w, end_w,
+                                             self.image_downsampling)
+            training_color_img_1 = color_img
+            height, width, _ = training_color_img_1.shape
 
-            if feature_matches.shape[0] > 0:
-                sampled_feature_matches_indexes = \
-                    np.asarray(
-                        np.random.choice(np.arange(feature_matches.shape[0]), size=self.sampling_size),
-                        dtype=np.int32).reshape((-1,))
-                sampled_feature_matches = np.asarray(feature_matches[sampled_feature_matches_indexes, :],
-                                                     dtype=np.float32).reshape(
-                    (self.sampling_size, 4))
-                break
-            else:
-                idx = np.random.randint(0, len(self.image_file_names))
-                continue
+            training_mask_boundary = utils.type_float_and_reshape(
+                self.mask_boundary_per_seq[folder_str].astype(np.float32) / 255.0,
+                (height, width, 1))
+            training_mask_boundary[training_mask_boundary > 0.9] = 1.0
+            training_mask_boundary[training_mask_boundary <= 0.9] = 0.0
 
-        height, width, _ = pair_imgs[0].shape
-        training_heatmaps_1, training_heatmaps_2 = utils.generate_heatmap_from_locations(
-            sampled_feature_matches, height, width, self.heatmap_sigma)
+            # Normalize
+            training_color_img_1 = self.normalize(image=training_color_img_1)['image']
 
-        # Format training data
-        training_color_img_1 = pair_imgs[0]
-        training_color_img_2 = pair_imgs[1]
-
-        training_mask_boundary = utils.type_float_and_reshape(
-            self.mask_boundary_per_seq[folder_str].astype(np.float32) / 255.0,
-            (height, width, 1))
-        training_mask_boundary[training_mask_boundary > 0.9] = 1.0
-        training_mask_boundary[training_mask_boundary <= 0.9] = 0.0
-
-        source_feature_2D_locations = sampled_feature_matches[:, :2]
-        target_feature_2D_locations = sampled_feature_matches[:, 2:]
-
-        source_feature_1D_locations = np.zeros(
-            (sampled_feature_matches.shape[0], 1), dtype=np.int32)
-        target_feature_1D_locations = np.zeros(
-            (sampled_feature_matches.shape[0], 1), dtype=np.int32)
-
-        clipped_source_feature_2D_locations = source_feature_2D_locations
-        clipped_source_feature_2D_locations[:, 0] = np.clip(clipped_source_feature_2D_locations[:, 0], a_min=0,
-                                                            a_max=width - 1)
-        clipped_source_feature_2D_locations[:, 1] = np.clip(clipped_source_feature_2D_locations[:, 1], a_min=0,
-                                                            a_max=height - 1)
-
-        clipped_target_feature_2D_locations = target_feature_2D_locations
-        clipped_target_feature_2D_locations[:, 0] = np.clip(clipped_target_feature_2D_locations[:, 0], a_min=0,
-                                                            a_max=width - 1)
-        clipped_target_feature_2D_locations[:, 1] = np.clip(clipped_target_feature_2D_locations[:, 1], a_min=0,
-                                                            a_max=height - 1)
-
-        source_feature_1D_locations[:, 0] = np.round(clipped_source_feature_2D_locations[:, 0]) + \
-                                            np.round(clipped_source_feature_2D_locations[:, 1]) * width
-        target_feature_1D_locations[:, 0] = np.round(clipped_target_feature_2D_locations[:, 0]) + \
-                                            np.round(clipped_target_feature_2D_locations[:, 1]) * width
-
-        # Normalize
-        training_color_img_1 = self.normalize(image=training_color_img_1)['image']
-        training_color_img_2 = self.normalize(image=training_color_img_2)['image']
-
-        return [img_to_tensor(training_color_img_1), img_to_tensor(training_color_img_2),
-                torch.from_numpy(source_feature_1D_locations),
-                torch.from_numpy(target_feature_1D_locations),
-                torch.from_numpy(source_feature_2D_locations),
-                torch.from_numpy(target_feature_2D_locations),
-                torch.from_numpy(training_heatmaps_1),
-                torch.from_numpy(training_heatmaps_2),
-                img_to_tensor(training_mask_boundary),
-                folder_str, str(img_file_name)]
+            return [img_to_tensor(training_color_img_1),
+                    img_to_tensor(training_mask_boundary),
+                    str(img_file_name), folder_str, start_h, start_w]
