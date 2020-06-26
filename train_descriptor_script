@@ -90,5 +90,57 @@
 3.0
 
 
+# ubuntu
+--adjacent_range
+1 50
+--image_downsampling
+4.0
+--network_downsampling
+64
+--input_size
+256 320
+--batch_size
+1
+--num_workers
+1
+--lr_range
+1.0e-4 1.0e-3
+--inlier_percentage
+0.9
+--display_interval
+50
+--validation_interval
+2
+--training_patient_id
+1
+--load_intermediate_data
+--num_epoch
+100
+--num_iter
+1000
+--heatmap_sigma
+5.0
+--visibility_overlap
+20
+--display_architecture
+--data_root
+"/home/xingtong/Data/example_training_data_root"
+--sampling_size
+10
+--log_root
+"/home/xingtong/Data/Training"
+--feature_length
+128
+--filter_growth_rate
+10
+--matching_scale
+20.0
+--matching_threshold
+0.9
+--rr_weight
+1.0
+--cross_check_distance
+3.0
+
 
 
