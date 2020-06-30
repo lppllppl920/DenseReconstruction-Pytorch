@@ -1,6 +1,6 @@
 # DenseReconstruction-Pytorch
 
-![](1.gif) ![](5.gif) ![](2.gif) ![](3.gif) ![](4.gif)
+![](GIFs/1.gif) ![](GIFs/5.gif) ![](GIFs/2.gif) ![](GIFs/3.gif) ![](GIFs/4.gif)
 
 *Left to right: original video, reconstruction fly-through, depth rendering, monocular depth estimate, monocular depth uncertainty estimate*
 
