@@ -39,7 +39,7 @@ Color images with the format ```{:08d}.jpg``` are extracted from the video seque
 ```view_indexes_per_point``` stores the indexes of the frames that each point in the sparse reconstruction gets triangulated with. The views per point are separated by -1 and the order of the points is the same as that in ```structure.ply```. We smooth out the point visibility information in the script to make the global scale recovery more stable and obtain more sparse points per frame for training. 
 The point visibility smoothness is controled by parameter ```visibility_overlap```.  ```visible_view_indexes``` stores the original frame indexes of the registered views where valid camera poses are successfully estimated by SfM. To convert SfM results from COLMAP to the required format, one example for using ```colmap_model_converter.py``` is:
 ```
-/path/to/python /path/to/colmap_model_converter.py --colmap_exe_path /path/to/COLMAP.bat --sequence_root /path/to/video/sequence
+/path/to/python /path/to/colmap_model_converter.py --colmap_exe_path "/path/to/COLMAP.bat" --sequence_root "/path/to/video/sequence"
 ```
 
 4. Train a feature descriptor model for pair-wise feature matching in SfM. One example for using ```train_descriptor.py``` is:
