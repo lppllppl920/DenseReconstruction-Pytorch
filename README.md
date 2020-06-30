@@ -1,11 +1,16 @@
 # DenseReconstruction-Pytorch
+
+![](1.gif) ![](5.gif) ![](2.gif) ![](3.gif) ![](4.gif)
+
+*Left to right: original video, reconstruction fly-through, depth rendering, monocular depth estimate, monocular depth uncertainty estimate*
+
 This codebase implements the method described in the paper:
 
 ***Reconstructing Sinus Anatomy from Endoscopic Video -- Towards a Radiation-free Approach for Quantitative Longitudinal Assessment***
 
 Xingtong Liu, Maia Stiber, Jindan Huang, Masaru Ishii, Gregory D. Hager, Russell H. Taylor, Mathias Unberath
 
-In ***2020 Conference on Medical Image Computing and Computer-Assisted Intervention (MICCAI)***
+In ***the 23rd International Conference on Medical Image Computing and Computer-Assisted Intervention (MICCAI 2020)***
 
 Please contact [**Xingtong Liu**](http://www.cs.jhu.edu/~xingtongl/) (xingtongliu@jhu.edu) or [**Mathias Unberath**](https://www.cs.jhu.edu/faculty/mathias-unberath/) (unberath@jhu.edu) if you have any questions.
 
