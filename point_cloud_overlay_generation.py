@@ -28,6 +28,7 @@ if __name__ == '__main__':
     parser.add_argument("--display_visible_only", action="store_true")
     parser.add_argument("--write_image", action="store_true")
     parser.add_argument("--write_video", action="store_true")
+    parser.add_argument("--overwrite_video", action="store_true")
 
     args = parser.parse_args()
 
@@ -44,8 +45,9 @@ if __name__ == '__main__':
     for prefix_seq in path_list:
         print("Processing {}...".format(str(prefix_seq)))
 
-        if (prefix_seq / "point_cloud_overlay.avi").exists():
-            continue
+        if not args.overwrite_video:
+            if (prefix_seq / "point_cloud_overlay.avi").exists():
+                continue
         # Read sparse point cloud from SfM
         if not (prefix_seq / "structure.ply").exists():
             continue
@@ -135,7 +137,7 @@ if __name__ == '__main__':
         # Drawing 2D overlay of sparse point cloud onto every image plane
         for i in range(len(visible_view_indexes)):
             print("Process {}...".format(i))
-            img = cv2.imread(str(prefix_seq.parents[1] / ("{:08d}.jpg".format(visible_view_indexes[i]))))
+            img = cv2.imread(str(prefix_seq.parents[1] / "images" / ("{:08d}.jpg".format(visible_view_indexes[i]))))
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             height, width = img.shape[:2]
 

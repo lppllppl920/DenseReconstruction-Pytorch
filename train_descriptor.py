@@ -8,10 +8,6 @@ terms of the GNU GENERAL PUBLIC LICENSE Version 3 license for non-commercial usa
 You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3 license with
 this file. If not, please write to: xliu89@jh.edu or unberath@jhu.edu
 '''
-import sys
-
-if '/opt/ros/kinetic/lib/python2.7/dist-packages' in sys.path:
-    sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import argparse
 import multiprocessing
 import cv2
@@ -75,6 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('--rr_weight', type=float, default=1.0, help='weight of relative response loss')
     parser.add_argument('--cross_check_distance', type=float, default=5.0, help='cross check distance for '
                                                                                 'pair-wise feature matching pruning')
+    parser.add_argument('--precompute_root', type=str, required=True, help='root of the pre-compute data')
     args = parser.parse_args()
 
     load_trained_model = args.load_trained_model
@@ -107,11 +104,8 @@ if __name__ == '__main__':
     writer = SummaryWriter(logdir=str(log_root))
     print("Created tensorboard visualization at {}".format(str(log_root)))
 
-    precompute_root = Path(args.data_root) / "precompute"
-    try:
-        precompute_root.mkdir(mode=0o777, parents=True)
-    except OSError:
-        pass
+    if not Path(args.precompute_root).exists():
+        Path(args.precompute_root).mkdir(parents=True)
 
     train_filenames = \
         utils.get_color_file_names_by_bag(root=Path(args.data_root), id_list=args.training_patient_id)
@@ -126,7 +120,7 @@ if __name__ == '__main__':
                                               inlier_percentage=args.inlier_percentage,
                                               network_downsampling=args.network_downsampling,
                                               load_intermediate_data=args.load_intermediate_data,
-                                              intermediate_data_root=precompute_root,
+                                              intermediate_data_root=Path(args.precompute_root),
                                               sampling_size=args.sampling_size,
                                               heatmap_sigma=args.heatmap_sigma,
                                               num_pre_workers=args.num_workers,

@@ -1,0 +1,51 @@
+    parser.add_argument('--image_downsampling', type=float, default=4.0,
+                        help='image downsampling rate to speed up training and reduce overfitting')
+    parser.add_argument('--network_downsampling', type=int, default=64,
+                        help='network downsampling rate')
+    parser.add_argument('--input_size', nargs='+', type=int,
+                        help='input size for the network')
+    parser.add_argument('--batch_size', type=int, default=8, help='batch size for testing')
+    parser.add_argument('--num_workers', type=int, default=8, help='number of workers for input data loader')
+    parser.add_argument('--visible_interval', type=int, default=5,
+                        help='range for propagating point visibility information')
+    parser.add_argument('--inlier_percentage', type=float, default=0.998,
+                        help='percentage of inliers of SfM point clouds (for pruning some outliers)')
+    parser.add_argument('--load_intermediate_data', action='store_true', help='whether to load intermediate data')
+    parser.add_argument('--display_architecture', action='store_true', help='display the network architecture')
+    parser.add_argument('--trained_model_path', type=str, required=True,
+                        help='path to the trained model')
+    parser.add_argument('--data_root', type=str, required=True,
+                        help='root storing the video and sparse reconstruction data')
+    parser.add_argument('--sequence_root', type=str, default=None,
+                        help='root of the sequence')
+    parser.add_argument('--patient_id', nargs='+', type=int,
+                        help='list patient id')
+    parser.add_argument('--precompute_root', type=str, required=True,
+                        help='root of the precompute data')
+
+
+--image_downsampling
+4.0
+--network_downsampling
+64
+--input_size
+256 320
+--batch_size
+1
+--num_workers
+1
+--visible_interval
+5
+--inlier_percentage
+0.9
+--load_intermediate_data
+--trained_model_path
+"D:\Data\example_training_data_root\Train\depth_train_6_28_23_53\checkpoint_model_epoch_26_-6.794628364205362_-4.715754954576502_-2.534272967725988_0.4329575656577947_0.022441990300314515.pt"
+--data_root
+"D:\Data\example_training_data_root\example_training_data_root_2"
+--sequence_root
+"D:\Data\example_training_data_root\example_training_data_root_2\1\_start_002603_end_002984_stride_1000_segment_00"
+--patient_id
+1
+--precompute_root
+"D:\Data\example_training_data_root\Train\precompute"

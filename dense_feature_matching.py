@@ -8,10 +8,6 @@ terms of the GNU GENERAL PUBLIC LICENSE Version 3 license for non-commercial usa
 You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3 license with
 this file. If not, please write to: xliu89@jh.edu or unberath@jhu.edu
 '''
-import sys
-
-if '/opt/ros/kinetic/lib/python2.7/dist-packages' in sys.path:
-    sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import cv2
 import numpy as np
 from pathlib import Path
@@ -47,7 +43,7 @@ if __name__ == '__main__':
                         help='max allowed number of detected features per frame')
     parser.add_argument('--cross_check_distance', type=float, default=3.0,
                         help='max cross check distance for valid matches')
-    parser.add_argument('--id_list', nargs='+', type=int,
+    parser.add_argument('--patient_id', nargs='+', type=int,
                         help='list patient ids')
     parser.add_argument('--gpu_id', type=int, default=0, help='gpu id for matching generation')
     parser.add_argument('--temporal_range', type=int, default=30, help='range for temporal sampling')
@@ -82,7 +78,7 @@ if __name__ == '__main__':
                                            network_downsampling=args.network_downsampling,
                                            load_intermediate_data=args.load_intermediate_data,
                                            precompute_root=Path(args.precompute_root),
-                                           batch_size=args.batch_size, id_list=args.id_list,
+                                           batch_size=args.batch_size, id_list=args.patient_id,
                                            filter_growth_rate=args.filter_growth_rate,
                                            feature_length=args.feature_length, gpu_id=args.gpu_id)
 

@@ -15,9 +15,10 @@ class SparseLogProbLoss(torch.nn.Module):
     def forward(self, x):
         mean_depth_maps, std_depth_maps, sparse_depth_maps, binary_sparse_masks = x
 
-        mean_sparse_depth = torch.sum(binary_sparse_masks * sparse_depth_maps, dim=(1, 2, 3)) / torch.sum(
-            binary_sparse_masks, dim=(1, 2, 3))
-        std_depth_maps = torch.clamp(std_depth_maps, min=torch.min(mean_sparse_depth * 1.0e-3).item())
+        # mean_sparse_depth = torch.sum(binary_sparse_masks * sparse_depth_maps, dim=(1, 2, 3)) / torch.sum(
+        #     binary_sparse_masks, dim=(1, 2, 3))
+        # std_depth_maps = torch.clamp(std_depth_maps, min=torch.min(mean_sparse_depth * 1.0e-3).item())
+        std_depth_maps = torch.clamp(std_depth_maps, min=self.epsilon)
 
         temp = sparse_depth_maps - mean_depth_maps
         temp_2 = (0.5 * temp ** 2) / std_depth_maps ** 2
@@ -40,10 +41,10 @@ class DenseLogProbLoss(torch.nn.Module):
     def forward(self, x):
         mean_depth_maps, std_depth_maps, warped_mean_depth_maps, intersect_masks = x
 
-        mean_depth = torch.sum(intersect_masks * (mean_depth_maps + warped_mean_depth_maps), dim=(1, 2, 3)) / torch.sum(
-            intersect_masks, dim=(1, 2, 3))
-        std_depth_maps = torch.clamp(std_depth_maps, min=torch.min(mean_depth * 1.0e-3).item())
-        # std_depth_maps = torch.clamp(std_depth_maps, min=self.epsilon)
+        # mean_depth = torch.sum(intersect_masks * (mean_depth_maps + warped_mean_depth_maps), dim=(1, 2, 3)) / torch.sum(
+        #     intersect_masks, dim=(1, 2, 3))
+        # std_depth_maps = torch.clamp(std_depth_maps, min=torch.min(mean_depth * 1.0e-3).item())
+        std_depth_maps = torch.clamp(std_depth_maps, min=self.epsilon)
 
         temp = warped_mean_depth_maps - mean_depth_maps
         loss = torch.sum(intersect_masks * (self.offset.to(mean_depth_maps.device) + torch.log(

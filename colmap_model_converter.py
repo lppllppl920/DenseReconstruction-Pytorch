@@ -9,7 +9,6 @@ You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3 lice
 this file. If not, please write to: xliu89@jh.edu or unberath@jhu.edu
 '''
 
-
 import os
 from pathlib import Path
 import numpy as np
@@ -72,7 +71,7 @@ if __name__ == "__main__":
 
         shutil.copy(src=str(mask_path), dst=str(result_path / mask_path.name))
 
-        f_selected_indexes = open(str(selected_indexes), "w")
+        f_selected_indexes = open(str(selected_indexes_path), "w")
         for index in selected_indexes:
             f_selected_indexes.write("{}\n".format(index))
         f_selected_indexes.close()

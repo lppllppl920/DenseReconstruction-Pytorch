@@ -9,7 +9,6 @@ You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3 lice
 this file. If not, please write to: xliu89@jh.edu or unberath@jhu.edu
 '''
 
-
 import os
 import argparse
 from pathlib import Path

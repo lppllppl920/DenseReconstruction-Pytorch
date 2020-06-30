@@ -9,10 +9,6 @@ You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3 lice
 this file. If not, please write to: xliu89@jh.edu or unberath@jhu.edu
 '''
 
-# Uncomment these three lines if OPENCV error related to ROS happens
-# import sys
-# if '/opt/ros/kinetic/lib/python2.7/dist-packages' in sys.path:
-#     sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import cv2
 import numpy as np
 from plyfile import PlyData, PlyElement
@@ -565,7 +561,7 @@ def get_clean_point_list(imgs, point_cloud, view_indexes_per_point, mask_boundar
         indexes_3 = indexes_3[0]
         point_cloud_contamination_accumulator[visible_point_indexes[indexes[indexes_2[indexes_3]]]] += 1
 
-    clean_point_cloud_array = (point_cloud_contamination_accumulator < point_cloud_appearance_count / 2).astype(
+    clean_point_cloud_array = (point_cloud_contamination_accumulator < point_cloud_appearance_count / 2.0).astype(
         np.float32)
     print("{} points eliminated".format(int(clean_point_cloud_array.shape[0] - np.sum(clean_point_cloud_array))))
     return clean_point_cloud_array
@@ -1398,3 +1394,21 @@ def save_model(model, optimizer, epoch, step, model_path, validation_loss):
         'validation': validation_loss
     }, str(model_path))
     return
+
+
+if __name__ == "__main__":
+    import open3d as o3d
+    import timeit
+    import trimesh
+
+    start = timeit.default_timer()
+    model_path = "D:/Data/example_training_data_root/example_training_data_root_2/1/_start_002603_end_002984_stride_1000_segment_00/fused_mesh.ply"
+    mesh = o3d.io.read_triangle_mesh(filename=model_path)
+    stop = timeit.default_timer()
+    print(stop - start)
+
+    start = timeit.default_timer()
+    model_path = "D:/Data/example_training_data_root/example_training_data_root_2/1/_start_002603_end_002984_stride_1000_segment_00/fused_mesh.ply"
+    mesh = trimesh.load_mesh(model_path)
+    stop = timeit.default_timer()
+    print(stop - start)

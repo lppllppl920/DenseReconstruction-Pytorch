@@ -8,10 +8,6 @@ terms of the GNU GENERAL PUBLIC LICENSE Version 3 license for non-commercial usa
 You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3 license with
 this file. If not, please write to: xliu89@jh.edu or unberath@jhu.edu
 '''
-import sys
-
-if '/opt/ros/kinetic/lib/python2.7/dist-packages' in sys.path:
-    sys.path.remove('/opt/ros/kinetic/lib/python2.7/dist-packages')
 import argparse
 from pathlib import Path
 import sqlite3
@@ -21,6 +17,7 @@ import h5py
 import tqdm
 from skimage.measure import ransac
 from skimage.transform import FundamentalMatrixTransform
+import sys
 
 IS_PYTHON3 = sys.version_info[0] >= 3
 

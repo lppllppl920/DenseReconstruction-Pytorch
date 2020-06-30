@@ -13,7 +13,6 @@ import tqdm
 import cv2
 import numpy as np
 from pathlib import Path
-import torchsummary
 import torch
 import random
 import argparse
@@ -109,8 +108,8 @@ if __name__ == '__main__':
                 continue
         print("Start gathering fusion data for {}".format(folder))
 
-        if (folder / "fusion_data.hdf5").exists():
-            continue
+        # if (folder / "fusion_data.hdf5").exists():
+        #     continue
 
         image_path_list = utils.get_file_names_in_sequence(folder)
         if len(image_path_list) == 0:
@@ -198,12 +197,10 @@ if __name__ == '__main__':
                     scaled_mean_depth_map_list.append(scaled_mean_depth_maps_1[i])
                     valid_indexes = np.argwhere(boundaries[i].reshape((-1,)) > 0.5)
                     depth_vector = scaled_mean_depth_maps_1[i].reshape((-1, 1))
-                    mean_depth_value = np.mean(depth_vector[valid_indexes, :])
-                    std_depth_value = np.std(depth_vector[valid_indexes, :])
                     scale_list.append(scales[i])
                     scaled_std_depth_map_list.append(scaled_std_depth_maps_1[i])
                     extrinsics_list.append(extrinsics_1[i])
-                    colors_list.append(colors_1[i])
+                    colors_list.append(colors_1[i] * 0.5 + 0.5)
                     boundaries_list.append(boundaries[i])
                     intrinsics_list.append(intrinsic_matrices[i])
                     image_name_list.append(image_names[i])
@@ -213,7 +210,6 @@ if __name__ == '__main__':
             valid_index_list = []
             median_scale = np.median(scale_list)
             state = "searching"
-            print(scale_list)
             for idx in range(len(scale_list)):
                 if state == "searching":
                     ratio = scale_list[idx] / median_scale

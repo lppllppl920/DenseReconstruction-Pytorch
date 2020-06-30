@@ -432,7 +432,7 @@ class DepthDataset(Dataset):
             mask_boundary[mask_boundary <= 0.9] = 0.0
             mask_boundary = mask_boundary.reshape((mask_boundary.shape[0], mask_boundary.shape[1], 1))
 
-            kernel = np.ones((5, 5), np.uint8)
+            kernel = np.ones((10, 10), np.uint8)
             shrink_boundary = cv2.erode(mask_boundary.astype(np.uint8), kernel, iterations=3)
             shrink_boundary = shrink_boundary.astype(np.float32).reshape(
                 (mask_boundary.shape[0], mask_boundary.shape[1], 1))
@@ -455,9 +455,9 @@ class DepthDataset(Dataset):
         elif self.phase == "Loading":
             img_file_name = self.image_file_names[idx]
             # Retrieve the folder path
-            folder = img_file_name.parent
             img_index = int(img_file_name.name[-12:-4])
-
+            folder = img_file_name.parents[1]
+            images_folder = folder / "images"
             folder_str = str(folder)
 
             start_h, end_h, start_w, end_w = self.crop_positions_per_seq[folder_str]
@@ -476,7 +476,7 @@ class DepthDataset(Dataset):
             pair_projection_matrices = [self.projection_per_seq[folder_str][pos],
                                         self.projection_per_seq[folder_str][pos + increment]]
             # Read pair images with downsampling and cropping
-            pair_imgs = utils.get_pair_color_imgs(prefix_seq=folder_str, pair_indexes=pair_indexes, start_h=start_h,
+            pair_imgs = utils.get_pair_color_imgs(prefix_seq=images_folder, pair_indexes=pair_indexes, start_h=start_h,
                                                   start_w=start_w,
                                                   end_h=end_h, end_w=end_w, downsampling_factor=self.image_downsampling)
 

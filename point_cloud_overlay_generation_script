@@ -1,0 +1,10 @@
+    parser.add_argument("--sequence_root", type=str, required=True, help='root of video sequence')
+    parser.add_argument("--display_image", action="store_true")
+    parser.add_argument("--display_visible_only", action="store_true")
+    parser.add_argument("--write_image", action="store_true")
+    parser.add_argument("--write_video", action="store_true")
+
+--sequence_root
+"D:\Data\example_training_data_root\example_training_data_root_2\1\_start_002603_end_002984_stride_1000_segment_00"
+--write_video
+--overwrite_video

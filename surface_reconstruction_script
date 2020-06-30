@@ -1,0 +1,24 @@
+    parser.add_argument('--data_root', type=str, required=True,
+                        help='root storing the data')
+    parser.add_argument('--visualize_fused_model', action='store_true',
+                        help='whether or not to visualize fused 3d model')
+    parser.add_argument('--trunc_margin_multiplier', type=float, default=10.0,
+                        help='truncate margin factor of the signed distance function')
+    parser.add_argument('--sequence_root', type=str, default=None,
+                        help='root of one video sequence')
+    parser.add_argument('--id_list', nargs='+', type=int, required=True,
+                        help='list of patient id')
+    parser.add_argument('--max_voxel_count', type=float, default=400.0 ** 3,
+                        help='maximum count of voxels for depth map fusion')
+
+--data_root
+"D:\Data\example_training_data_root\example_training_data_root_2"
+--visualize_fused_model
+--trunc_margin_multiplier
+10.0
+--sequence_root
+"D:\Data\example_training_data_root\example_training_data_root_2\1\_start_002603_end_002984_stride_1000_segment_00"
+--id_list
+1
+--max_voxel_count
+64e6

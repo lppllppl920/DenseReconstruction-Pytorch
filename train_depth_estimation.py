@@ -8,7 +8,6 @@ terms of the GNU GENERAL PUBLIC LICENSE Version 3 license for non-commercial usa
 You should have received a copy of the GNU GENERAL PUBLIC LICENSE Version 3 license with
 this file. If not, please write to: xliu89@jh.edu or unberath@jhu.edu
 '''
-
 import tqdm
 import cv2
 import numpy as np
@@ -64,7 +63,7 @@ def main():
                         help='whether to load pre-trained model')
     parser.add_argument('--trained_model_path', type=str, default=None, help='path to the trained model')
     parser.add_argument('--num_epoch', type=int, required=True, help='number of epochs in total')
-    parser.add_argument('--architecture_summary', action='store_true', help='summarize the network architecture')
+    parser.add_argument('--display_architecture', action='store_true', help='summarize the network architecture')
     parser.add_argument('--data_root', type=str, required=True, help='path to the training data')
     parser.add_argument('--log_root', type=str, required=True, help='root of the training logs')
     parser.add_argument('--precompute_root', type=str, required=True, help='root of the pre-compute data')
@@ -170,7 +169,7 @@ def main():
     descriptor_model = models.FCDenseNetFeature(
         in_channels=3, down_blocks=(3, 3, 3, 3, 3),
         up_blocks=(3, 3, 3, 3, 3), bottleneck_layers=4,
-        growth_rate=8, out_chans_first_conv=16, feature_length=256, final_convs_filter_base=128)
+        growth_rate=10, out_chans_first_conv=16, feature_length=128)
     # Initialize the depth estimation network with Kaiming He initialization
     descriptor_model = utils.init_net(descriptor_model, type="kaiming", mode="fan_in",
                                       activation_mode="relu",
@@ -197,9 +196,11 @@ def main():
         if cur_epoch <= 10:
             dcl_weight = 0.0
             dl_weight = 0.0
+            slp_weight = 0.0
         else:
             dcl_weight = args.dcl_weight
             dl_weight = args.dl_weight
+            slp_weight = args.slp_weight
 
         # Update progress bar
         tq = tqdm.tqdm(total=len(train_loader) * args.batch_size)
@@ -262,18 +263,18 @@ def main():
                  rotations_2_wrt_1, intrinsics])
 
             descriptor_loss_1 = torch.mean((torch.sum(
-                shrink_intersect_masks_1 * torch.abs(feature_maps_1 - warped_feature_maps_2_to_1), dim=(1, 2, 3))) / (
+                shrink_intersect_masks_1 * (feature_maps_1 - warped_feature_maps_2_to_1) ** 2, dim=(1, 2, 3))) / (
                                                    torch.sum(shrink_intersect_masks_1, dim=(1, 2, 3)) + 1.0e-8))
             descriptor_loss_2 = torch.mean((torch.sum(
-                shrink_intersect_masks_2 * torch.abs(feature_maps_2 - warped_feature_maps_1_to_2), dim=(1, 2, 3))) / (
+                shrink_intersect_masks_2 * (feature_maps_2 - warped_feature_maps_1_to_2) ** 2, dim=(1, 2, 3))) / (
                                                    torch.sum(shrink_intersect_masks_2, dim=(1, 2, 3)) + 1.0e-8))
             dl_loss = dl_weight * (0.5 * descriptor_loss_1 + 0.5 * descriptor_loss_2)
 
             # Sparse log prob loss
-            sd_loss = args.slp_weight * (0.5 * sparse_log_prob_loss([scaled_mean_depth_maps_1, scaled_std_depth_maps_1,
-                                                                     sparse_depths_1, sparse_depth_masks_1]) + 0.5 *
-                                         sparse_log_prob_loss([scaled_mean_depth_maps_2, scaled_std_depth_maps_2,
-                                                               sparse_depths_2, sparse_depth_masks_2]))
+            sd_loss = slp_weight * (0.5 * sparse_log_prob_loss([scaled_mean_depth_maps_1, scaled_std_depth_maps_1,
+                                                                sparse_depths_1, sparse_depth_masks_1]) + 0.5 *
+                                    sparse_log_prob_loss([scaled_mean_depth_maps_2, scaled_std_depth_maps_2,
+                                                          sparse_depths_2, sparse_depth_masks_2]))
 
             warped_mean_depth_maps_2_to_1, intersect_masks_1 = depth_warping_layer(
                 [scaled_mean_depth_maps_1, scaled_mean_depth_maps_2, boundaries, translations_1_wrt_2,
