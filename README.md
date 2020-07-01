@@ -44,7 +44,7 @@ The point visibility smoothness is controled by parameter ```visibility_overlap`
 
 4. Train a feature descriptor model for pair-wise feature matching in SfM. One example for using ```train_descriptor.py``` is:
 ```
-/path/to/python /path/to/train_descriptor.py --adjacent_range 1 50 --image_downsampling 4.0 --network_downsampling 64 --input_size 256 320 --batch_size 4 --num_workers 4 --lr_range 1.0e-4 1.0e-3 --inlier_percentage 0.9 --display_interval 50 --validation_interval 2 --training_patient_id 1 --load_intermediate_data --num_epoch 100 --num_iter 1000 --heatmap_sigma 5.0 --visibility_overlap 20 --display_architecture --data_root "/path/to/training/data/root" --sampling_size 10 --log_root "/path/to/log/root" --feature_length 128 --filter_growth_rate 10 --matching_scale 20.0 --matching_threshold 0.9 --rr_weight 1.0 --cross_check_distance 3.0 --precompute_root "/path/to/precompute/root"
+/path/to/python /path/to/train_descriptor.py --adjacent_range 1 50 --image_downsampling 4.0 --network_downsampling 64 --input_size 256 320 --batch_size 4 --num_workers 4 --lr_range 1.0e-4 1.0e-3 --inlier_percentage 0.9 --display_interval 50 --validation_interval 2 --training_patient_id 1 --load_intermediate_data --num_epoch 60 --num_iter 1000 --heatmap_sigma 5.0 --visibility_overlap 20 --display_architecture --data_root "/path/to/training/data/root" --sampling_size 10 --log_root "/path/to/log/root" --feature_length 128 --filter_growth_rate 10 --matching_scale 20.0 --matching_threshold 0.9 --rr_weight 1.0 --cross_check_distance 3.0 --precompute_root "/path/to/precompute/root"
 ```
 ```--load_trained_model --trained_model_path "/path/to/trained/model"``` can be added to continue previous training.
 
@@ -67,7 +67,7 @@ The point visibility smoothness is controled by parameter ```visibility_overlap`
 
 9. Train a depth estimation model with the data generated in step 8. The previous trained descriptor model can be used to calculate an optional appearance consistency loss. One example is:
 ```
-/path/to/python /path/to/train_depth_estimation.py --adjacent_range 5 30 --image_downsampling 4.0 --network_downsampling 64 --input_size 256 320 --batch_size 4 --num_workers 4 --slp_weight 1.0 --dcl_weight 0.5 --sfl_weight 2.0 --dl_weight 0.05 --lr_range 1.0e-4 1.0e-3 --inlier_percentage 0.9 --display_interval 20 --visible_interval 5 --save_interval 1 --training_patient_id 1 --num_epoch 100 --num_iter 1000 --display_architecture --load_intermediate_data --data_root "/path/to/training/data/root" --log_root "/path/to/log/root" --precompute_root "/path/to/precompute/root" --descriptor_model_path "/path/to/trained/descriptor/model"
+/path/to/python /path/to/train_depth_estimation.py --adjacent_range 5 30 --image_downsampling 4.0 --network_downsampling 64 --input_size 256 320 --batch_size 4 --num_workers 4 --slp_weight 1.0 --dcl_weight 0.5 --sfl_weight 2.0 --dl_weight 0.05 --lr_range 1.0e-4 1.0e-3 --inlier_percentage 0.9 --display_interval 20 --visible_interval 5 --save_interval 1 --training_patient_id 1 --num_epoch 40 --num_iter 1000 --display_architecture --load_intermediate_data --data_root "/path/to/training/data/root" --log_root "/path/to/log/root" --precompute_root "/path/to/precompute/root" --descriptor_model_path "/path/to/trained/descriptor/model"
 ```
 ```--load_trained_model --trained_model_path "/path/to/trained/model"``` can be added to continue previous training.
 
