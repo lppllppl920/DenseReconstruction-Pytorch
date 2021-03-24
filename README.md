@@ -16,11 +16,29 @@ Please contact [**Xingtong Liu**](http://www.cs.jhu.edu/~xingtongl/) (xingtongli
 
 We kindly ask you to cite [this paper](https://arxiv.org/abs/2003.08502) if the code is used in your own work.
 ```
-@article{liu2020reconstructing,
-  title={Reconstructing Sinus Anatomy from Endoscopic Video--Towards a Radiation-free Approach for Quantitative Longitudinal Assessment},
-  author={Liu, Xingtong and Stiber, Maia and Huang, Jindan and Ishii, Masaru and Hager, Gregory D and Taylor, Russell H and Unberath, Mathias},
-  journal={arXiv preprint arXiv:2003.08502},
-  year={2020}
+@InProceedings{liu2020reconstructing,
+author="Liu, Xingtong
+and Stiber, Maia
+and Huang, Jindan
+and Ishii, Masaru
+and Hager, Gregory D.
+and Taylor, Russell H.
+and Unberath, Mathias",
+editor="Martel, Anne L.
+and Abolmaesumi, Purang
+and Stoyanov, Danail
+and Mateus, Diana
+and Zuluaga, Maria A.
+and Zhou, S. Kevin
+and Racoceanu, Daniel
+and Joskowicz, Leo",
+title="Reconstructing Sinus Anatomy from Endoscopic Video -- Towards a Radiation-Free Approach for Quantitative Longitudinal Assessment",
+booktitle="Medical Image Computing and Computer Assisted Intervention -- MICCAI 2020",
+year="2020",
+publisher="Springer International Publishing",
+address="Cham",
+pages="3--13",
+isbn="978-3-030-59716-0"
 }
 ```
 
