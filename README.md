@@ -14,7 +14,7 @@ In ***the 23rd International Conference on Medical Image Computing and Computer-
 
 Please contact [**Xingtong Liu**](http://www.cs.jhu.edu/~xingtongl/) (xingtongliu@jhu.edu) or [**Mathias Unberath**](https://www.cs.jhu.edu/faculty/mathias-unberath/) (unberath@jhu.edu) if you have any questions.
 
-We kindly ask you to cite [this paper](https://arxiv.org/abs/2003.08502) if the code is used in your own work.
+We kindly ask you to cite [this paper](https://link.springer.com/chapter/10.1007/978-3-030-59716-0_1) if the code is used in your own work.
 ```
 @InProceedings{liu2020reconstructing,
 author="Liu, Xingtong
