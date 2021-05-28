@@ -1,4 +1,4 @@
-# DenseReconstruction-Pytorch
+# Reconstructing Sinus Anatomy from Endoscopic Video -- Towards a Radiation-free Approach for Quantitative Longitudinal Assessment
 
 ![](GIFs/1.gif) ![](GIFs/5.gif) ![](GIFs/2.gif) ![](GIFs/3.gif) ![](GIFs/4.gif)
 
