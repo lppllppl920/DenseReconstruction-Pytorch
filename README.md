@@ -99,6 +99,13 @@ The point visibility smoothness is controled by parameter ```visibility_overlap`
 /path/to/python /path/to/surface_reconstruction.py --data_root "/path/to/data/root" --visualize_fused_model --trunc_margin_multiplier 10.0 --sequence_root "/path/to/sequence/root" --patient_id 1 --max_voxel_count 64e6
 ```
 
+## Related Projects
+[Neighborhood Normalization for Robust Geometric Feature Learning (CVPR 2021)](https://github.com/lppllppl920/NeighborhoodNormalization-Pytorch)
+
+[Extremely Dense Point Correspondences using a Learned Feature Descriptor (CVPR 2020)](https://github.com/lppllppl920/DenseDescriptorLearning-Pytorch)
+
+[Dense Depth Estimation in Monocular Endoscopy with Self-supervised Learning Methods (TMI)](https://github.com/lppllppl920/EndoscopyDepthEstimation-Pytorch)
+
 ## Disclaimer
 
 This codebase is only experimental and not ready for clinical applications.
