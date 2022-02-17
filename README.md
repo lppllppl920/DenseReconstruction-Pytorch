@@ -100,16 +100,11 @@ The point visibility smoothness is controled by parameter ```visibility_overlap`
 ```
 
 ## Related Projects
-[Neighborhood Normalization for Robust Geometric Feature Learning (CVPR 2021)](https://github.com/lppllppl920/NeighborhoodNormalization-Pytorch)
 
-[Extremely Dense Point Correspondences using a Learned Feature Descriptor (CVPR 2020)](https://github.com/lppllppl920/DenseDescriptorLearning-Pytorch)
+- [SAGE: SLAM with Appearance and Geometry Prior for Endoscopy (ICRA 2022)](https://github.com/lppllppl920/SAGE-SLAM)
 
-[Dense Depth Estimation in Monocular Endoscopy with Self-supervised Learning Methods (TMI)](https://github.com/lppllppl920/EndoscopyDepthEstimation-Pytorch)
+- [Neighborhood Normalization for Robust Geometric Feature Learning (CVPR 2021)](https://github.com/lppllppl920/NeighborhoodNormalization-Pytorch)
 
-## Disclaimer
+- [Extremely Dense Point Correspondences using a Learned Feature Descriptor (CVPR 2020)](https://github.com/lppllppl920/DenseDescriptorLearning-Pytorch)
 
-This codebase is only experimental and not ready for clinical applications.
-
-Authors are not responsible for any accidents related to this repository.
-
-This codebase is only allowed for non-commercial usage.
+- [Dense Depth Estimation in Monocular Endoscopy with Self-supervised Learning Methods (TMI)](https://github.com/lppllppl920/EndoscopyDepthEstimation-Pytorch)
