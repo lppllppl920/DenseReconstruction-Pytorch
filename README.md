@@ -99,6 +99,10 @@ The point visibility smoothness is controled by parameter ```visibility_overlap`
 /path/to/python /path/to/surface_reconstruction.py --data_root "/path/to/data/root" --visualize_fused_model --trunc_margin_multiplier 10.0 --sequence_root "/path/to/sequence/root" --patient_id 1 --max_voxel_count 64e6
 ```
 
+## Pre-trained models
+
+The pre-trained weights for dense descriptor network and depth estimation network are provided [here](https://drive.google.com/file/d/1RwmxpI7kuZ7teB14EQY3u06CAV7-KsX0/view?usp=sharing).
+
 ## Related Projects
 
 - [SAGE: SLAM with Appearance and Geometry Prior for Endoscopy (ICRA 2022)](https://github.com/lppllppl920/SAGE-SLAM)
